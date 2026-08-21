@@ -4,7 +4,7 @@
 
 NexoBot est un bot Discord polyvalent conçu pour faciliter la gestion de votre serveur grâce à des outils de modération, un système de tickets, des logs automatiques et bien plus encore.
 
-[![Discord](https://img.shields.io/badge/Discord-Bot-7289DA?style=for-the-badge&logo=discord)](https://discord.com/)
+[![Discord](https://img.shields.io/badge/Discord-Bot-7289DA?style=for-the-badge&logo=discord)](https://discord.com/oauth2/authorize?client_id=1511746763831247091&permissions=8&integration_type=0&scope=bot+applications.commands)
 [![Python](https://img.shields.io/badge/Python-3.10+-blue?style=for-the-badge&logo=python)](https://www.python.org/)
 [![discord.py](https://img.shields.io/badge/discord.py-2.5.0+-red?style=for-the-badge&logo=python)](https://discordpy.readthedocs.io/)
 
