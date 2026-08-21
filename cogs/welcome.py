@@ -13,7 +13,6 @@ class Welcome(Cog):
     
     @Cog.listener()
     async def on_member_join(self, member):
-        """Accueille les nouveaux membres"""
         welcome_channel_id = self.bot.config.get("welcome_channel_id")
         if not welcome_channel_id:
             return
@@ -22,10 +21,8 @@ class Welcome(Cog):
         if not channel:
             return
         
-        # Récupérer le message de bienvenue personnalisé
-        welcome_message = self.bot.config.get("welcome_message", "Bienvenue {mention} sur **{server}** !")
+        welcome_message = self.bot.config.get("welcome_message", "Bienvenue {mention} !")
         
-        # Personnaliser le message
         message = welcome_message.format(
             mention=member.mention,
             server=member.guild.name,
@@ -33,22 +30,18 @@ class Welcome(Cog):
             name=member.name
         )
         
-        # Créer l'embed de bienvenue
         embed = discord.Embed(
-            title=" Bienvenue !",
+            title="👋 Bienvenue !",
             description=message,
             color=discord.Color.green(),
             timestamp=member.joined_at
         )
         embed.set_thumbnail(url=member.avatar.url if member.avatar else member.default_avatar.url)
-        embed.add_field(name="Membre n°", value=len(member.guild.members), inline=True)
-        embed.set_footer(text=f"ID: {member.id}")
         
         try:
             await channel.send(embed=embed)
-            logger.info(f"Message de bienvenue envoyé pour {member}")
         except Exception as e:
-            logger.error(f"Erreur envoi welcome message: {e}")
+            logger.error(f"Erreur welcome: {e}")
 
-def setup(bot):
-    bot.add_cog(Welcome(bot))
+async def setup(bot):
+    await bot.add_cog(Welcome(bot))
