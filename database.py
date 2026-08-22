@@ -4,9 +4,6 @@ Couche d'accès à la base de données PostgreSQL pour NexoBot.
 Utilise un pool de connexions asyncpg. Sur Railway, la variable d'environnement
 DATABASE_URL est injectée automatiquement dès que tu lies un service PostgreSQL
 à ton bot — rien à configurer à la main.
-
-L'interface (noms de fonctions, types de retour) est identique à la version
-SQLite précédente : aucun autre fichier du projet n'a besoin d'être modifié.
 """
 
 import json
