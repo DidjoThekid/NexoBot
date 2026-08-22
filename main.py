@@ -3,6 +3,7 @@ import logging
 import os
 
 import discord
+from discord import app_commands
 from discord.ext import commands, tasks
 from dotenv import load_dotenv
 
@@ -32,22 +33,11 @@ logger = logging.getLogger("NexoBot")
 
 intents = discord.Intents.default()
 intents.members = True
-intents.message_content = True  # requis pour la modération / lecture des messages
+intents.message_content = True  # requis pour l'automod (lecture du contenu des messages)
 
-
-async def get_prefix(bot: commands.Bot, message: discord.Message):
-    """Préfixe dynamique : chaque serveur peut avoir le sien, stocké en base."""
-    if not message.guild:
-        return "!"
-    settings = await database.get_settings(message.guild.id)
-    return settings.get("prefix", "!")
-
-
-bot = commands.Bot(
-    command_prefix=get_prefix,
-    intents=intents,
-    help_command=commands.DefaultHelpCommand(),
-)
+# Le préfixe texte n'est plus utilisé (tout passe en slash commands), mais
+# discord.py exige quand même un command_prefix pour instancier un Bot.
+bot = commands.Bot(command_prefix="!", intents=intents)
 
 COGS = [
     "cogs.moderation",
@@ -80,11 +70,17 @@ async def on_ready():
     if not update_status.is_running():
         update_status.start()
 
+    try:
+        synced = await bot.tree.sync()
+        logger.info(f"{len(synced)} slash commande(s) synchronisée(s) globalement.")
+    except Exception:
+        logger.exception("Échec de la synchronisation des slash commands.")
+
 
 @bot.event
 async def on_guild_join(guild: discord.Guild):
     logger.info(f"Rejoint un nouveau serveur : {guild.name} (ID: {guild.id})")
-    await update_status()  # mise à jour immédiate, pas besoin d'attendre 10 minutes
+    await update_status()
 
 
 @bot.event
@@ -93,25 +89,23 @@ async def on_guild_remove(guild: discord.Guild):
     await update_status()
 
 
-@bot.event
-async def on_command_error(ctx: commands.Context, error: commands.CommandError):
-    """Gestion centralisée des erreurs de commandes."""
-    if isinstance(error, commands.CommandNotFound):
-        return  # on ignore silencieusement les commandes inconnues
-
-    if isinstance(error, commands.MissingPermissions):
-        await ctx.send("🚫 Tu n'as pas la permission d'utiliser cette commande.")
-    elif isinstance(error, commands.BotMissingPermissions):
-        await ctx.send("⚠️ Il me manque des permissions pour faire ça.")
-    elif isinstance(error, commands.MissingRequiredArgument):
-        await ctx.send(f"❗ Argument manquant : `{error.param.name}`.")
-    elif isinstance(error, commands.BadArgument):
-        await ctx.send("❗ Argument invalide. Vérifie ta commande.")
-    elif isinstance(error, commands.CommandOnCooldown):
-        await ctx.send(f"⏳ Attends encore {error.retry_after:.1f}s avant de réessayer.")
+@bot.tree.error
+async def on_app_command_error(interaction: discord.Interaction, error: app_commands.AppCommandError):
+    """Gestion centralisée des erreurs de slash commands."""
+    if isinstance(error, app_commands.MissingPermissions):
+        message = "🚫 Tu n'as pas la permission d'utiliser cette commande."
+    elif isinstance(error, app_commands.BotMissingPermissions):
+        message = "⚠️ Il me manque des permissions pour faire ça."
+    elif isinstance(error, app_commands.CommandOnCooldown):
+        message = f"⏳ Attends encore {error.retry_after:.1f}s avant de réessayer."
     else:
-        logger.exception("Erreur non gérée", exc_info=error)
-        await ctx.send("💥 Une erreur inattendue est survenue.")
+        logger.exception("Erreur non gérée sur une slash command", exc_info=error)
+        message = "💥 Une erreur inattendue est survenue."
+
+    if interaction.response.is_done():
+        await interaction.followup.send(message, ephemeral=True)
+    else:
+        await interaction.response.send_message(message, ephemeral=True)
 
 
 async def main():
