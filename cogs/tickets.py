@@ -1,6 +1,7 @@
 import asyncio
 
 import discord
+from discord import app_commands
 from discord.ext import commands
 
 import database
@@ -24,7 +25,6 @@ class TicketOpenView(discord.ui.View):
         category_id = settings.get("ticket_category_id")
         support_role_id = settings.get("ticket_support_role_id")
 
-        # Empêche les doublons : un seul ticket ouvert par membre
         existing = discord.utils.get(guild.text_channels, name=f"ticket-{interaction.user.name.lower()}")
         if existing:
             return await interaction.response.send_message(
@@ -86,21 +86,18 @@ class Tickets(commands.Cog):
 
     def __init__(self, bot: commands.Bot):
         self.bot = bot
-        # Ré-enregistre les vues au redémarrage pour que les boutons restent actifs
         bot.add_view(TicketOpenView())
         bot.add_view(TicketCloseView())
 
-    @commands.command()
-    @commands.has_permissions(manage_guild=True)
-    async def setupticket(self, ctx: commands.Context):
-        """Poste le message avec le bouton d'ouverture de ticket dans le salon actuel."""
+    @app_commands.command(name="setupticket", description="Poste le message d'ouverture de ticket dans ce salon.")
+    @app_commands.checks.has_permissions(manage_guild=True)
+    async def setupticket(self, interaction: discord.Interaction):
         embed = discord.Embed(
             title="📩 Support",
             description="Clique sur le bouton ci-dessous pour ouvrir un ticket et contacter le staff.",
             color=discord.Color.blurple(),
         )
-        await ctx.send(embed=embed, view=TicketOpenView())
-        await ctx.message.delete()
+        await interaction.response.send_message(embed=embed, view=TicketOpenView())
 
 
 async def setup(bot: commands.Bot):
