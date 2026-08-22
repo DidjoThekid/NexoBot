@@ -3,7 +3,7 @@ import logging
 import os
 
 import discord
-from discord.ext import commands
+from discord.ext import commands, tasks
 from dotenv import load_dotenv
 
 import database
@@ -60,10 +60,37 @@ COGS = [
 ]
 
 
+@tasks.loop(minutes=10)
+async def update_status():
+    """Met à jour le statut du bot avec le nombre de serveurs, toutes les 10 minutes."""
+    count = len(bot.guilds)
+    label = "serveur" if count <= 1 else "serveurs"
+    await bot.change_presence(
+        activity=discord.Activity(
+            type=discord.ActivityType.watching,
+            name=f"{count} {label} 👀",
+        )
+    )
+
+
 @bot.event
 async def on_ready():
     logger.info(f"NexoBot connecté en tant que {bot.user} (ID: {bot.user.id})")
     logger.info(f"Présent sur {len(bot.guilds)} serveur(s).")
+    if not update_status.is_running():
+        update_status.start()
+
+
+@bot.event
+async def on_guild_join(guild: discord.Guild):
+    logger.info(f"Rejoint un nouveau serveur : {guild.name} (ID: {guild.id})")
+    await update_status()  # mise à jour immédiate, pas besoin d'attendre 10 minutes
+
+
+@bot.event
+async def on_guild_remove(guild: discord.Guild):
+    logger.info(f"Retiré du serveur : {guild.name} (ID: {guild.id})")
+    await update_status()
 
 
 @bot.event
