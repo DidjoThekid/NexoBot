@@ -1,9 +1,0 @@
-{
-  "prefix": "!",
-  "mod_role_id": null,
-  "welcome_channel_id": null,
-  "log_channel_id": null,
-  "ticket_category_id": null,
-  "ticket_support_role_id": null,
-  "welcome_message": "Bienvenue {mention} sur **{server}** ! Tu es notre {count}e membre 🎉"
-}
