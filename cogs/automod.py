@@ -2,13 +2,13 @@ import time
 from collections import defaultdict, deque
 
 import discord
+from discord import app_commands
 from discord.ext import commands
 
 import database
 
-# Anti-spam : fenêtre glissante en mémoire (pas besoin de DB, c'est éphémère)
 SPAM_WINDOW_SECONDS = 6
-SPAM_MESSAGE_THRESHOLD = 5  # N messages en moins de SPAM_WINDOW_SECONDS = spam
+SPAM_MESSAGE_THRESHOLD = 5
 
 _message_history: dict[int, deque] = defaultdict(deque)
 
@@ -28,7 +28,6 @@ class AutoMod(commands.Cog):
         if not settings.get("automod_enabled"):
             return
 
-        # Le staff (permission manage_messages) n'est pas soumis à l'automod
         if isinstance(message.author, discord.Member) and message.author.guild_permissions.manage_messages:
             return
 
@@ -47,7 +46,7 @@ class AutoMod(commands.Cog):
                 await message.delete()
             except discord.Forbidden:
                 pass
-            warning = await message.channel.send(
+            await message.channel.send(
                 f"{message.author.mention} ton message a été supprimé (mot interdit).",
                 delete_after=5,
             )
@@ -60,7 +59,6 @@ class AutoMod(commands.Cog):
         history = _message_history[message.author.id]
         history.append(now)
 
-        # On ne garde que les messages dans la fenêtre de temps
         while history and now - history[0] > SPAM_WINDOW_SECONDS:
             history.popleft()
 
@@ -96,38 +94,42 @@ class AutoMod(commands.Cog):
     # ------------------------------------------------------------------
     # Commandes de gestion
     # ------------------------------------------------------------------
-    @commands.command()
-    @commands.has_permissions(manage_guild=True)
-    async def automod(self, ctx: commands.Context, state: str):
-        if state.lower() not in ("on", "off"):
-            return await ctx.send("Utilise `!automod on` ou `!automod off`.")
-        await database.update_setting(ctx.guild.id, "automod_enabled", state.lower() == "on")
-        await ctx.send(f"✅ Automod {'activé' if state.lower() == 'on' else 'désactivé'}.")
+    @app_commands.command(name="automod", description="Active ou désactive le filtre automatique.")
+    @app_commands.describe(state="on pour activer, off pour désactiver")
+    @app_commands.choices(state=[
+        app_commands.Choice(name="on", value="on"),
+        app_commands.Choice(name="off", value="off"),
+    ])
+    @app_commands.checks.has_permissions(manage_guild=True)
+    async def automod(self, interaction: discord.Interaction, state: app_commands.Choice[str]):
+        await database.update_setting(interaction.guild.id, "automod_enabled", state.value == "on")
+        await interaction.response.send_message(f"✅ Automod {'activé' if state.value == 'on' else 'désactivé'}.")
 
-    @commands.command()
-    @commands.has_permissions(manage_guild=True)
-    async def addbannedword(self, ctx: commands.Context, *, word: str):
-        await database.add_banned_word(ctx.guild.id, word)
-        await ctx.send(f"✅ Mot ajouté à la liste des mots interdits.")
-        await ctx.message.delete()
+    @app_commands.command(name="addbannedword", description="Ajoute un mot à la liste des mots interdits.")
+    @app_commands.describe(word="Le mot à interdire")
+    @app_commands.checks.has_permissions(manage_guild=True)
+    async def addbannedword(self, interaction: discord.Interaction, word: str):
+        await database.add_banned_word(interaction.guild.id, word)
+        await interaction.response.send_message("✅ Mot ajouté à la liste des mots interdits.", ephemeral=True)
 
-    @commands.command()
-    @commands.has_permissions(manage_guild=True)
-    async def removebannedword(self, ctx: commands.Context, *, word: str):
-        await database.remove_banned_word(ctx.guild.id, word)
-        await ctx.send(f"✅ Mot retiré de la liste des mots interdits.")
+    @app_commands.command(name="removebannedword", description="Retire un mot de la liste des mots interdits.")
+    @app_commands.describe(word="Le mot à retirer")
+    @app_commands.checks.has_permissions(manage_guild=True)
+    async def removebannedword(self, interaction: discord.Interaction, word: str):
+        await database.remove_banned_word(interaction.guild.id, word)
+        await interaction.response.send_message("✅ Mot retiré de la liste des mots interdits.", ephemeral=True)
 
-    @commands.command()
-    @commands.has_permissions(manage_guild=True)
-    async def bannedwords(self, ctx: commands.Context):
-        words = await database.get_banned_words(ctx.guild.id)
+    @app_commands.command(name="bannedwords", description="Envoie en MP la liste des mots interdits.")
+    @app_commands.checks.has_permissions(manage_guild=True)
+    async def bannedwords(self, interaction: discord.Interaction):
+        words = await database.get_banned_words(interaction.guild.id)
         if not words:
-            return await ctx.send("Aucun mot interdit configuré.")
+            return await interaction.response.send_message("Aucun mot interdit configuré.", ephemeral=True)
         try:
-            await ctx.author.send("Mots interdits sur ce serveur :\n" + ", ".join(f"`{w}`" for w in words))
-            await ctx.send("📬 Je t'ai envoyé la liste en message privé.")
+            await interaction.user.send("Mots interdits sur ce serveur :\n" + ", ".join(f"`{w}`" for w in words))
+            await interaction.response.send_message("📬 Je t'ai envoyé la liste en message privé.", ephemeral=True)
         except discord.Forbidden:
-            await ctx.send("Active tes MP pour que je puisse t'envoyer la liste.")
+            await interaction.response.send_message("Active tes MP pour que je puisse t'envoyer la liste.", ephemeral=True)
 
 
 async def setup(bot: commands.Bot):
