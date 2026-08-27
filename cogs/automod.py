@@ -2,13 +2,13 @@ import time
 from collections import defaultdict, deque
 
 import discord
-from discord import app_commands
 from discord.ext import commands
 
 import database
 
+# Anti-spam : fenêtre glissante en mémoire (pas besoin de DB, c'est éphémère)
 SPAM_WINDOW_SECONDS = 6
-SPAM_MESSAGE_THRESHOLD = 5
+SPAM_MESSAGE_THRESHOLD = 5  # N messages en moins de SPAM_WINDOW_SECONDS = spam
 
 _message_history: dict[int, deque] = defaultdict(deque)
 
@@ -90,46 +90,6 @@ class AutoMod(commands.Cog):
         embed.add_field(name="Motif", value=reason, inline=True)
         embed.add_field(name="Détail", value=detail[:1000], inline=False)
         await channel.send(embed=embed)
-
-    # ------------------------------------------------------------------
-    # Commandes de gestion
-    # ------------------------------------------------------------------
-    @app_commands.command(name="automod", description="Active ou désactive le filtre automatique.")
-    @app_commands.describe(state="on pour activer, off pour désactiver")
-    @app_commands.choices(state=[
-        app_commands.Choice(name="on", value="on"),
-        app_commands.Choice(name="off", value="off"),
-    ])
-    @app_commands.checks.has_permissions(manage_guild=True)
-    async def automod(self, interaction: discord.Interaction, state: app_commands.Choice[str]):
-        await database.update_setting(interaction.guild.id, "automod_enabled", state.value == "on")
-        await interaction.response.send_message(f"✅ Automod {'activé' if state.value == 'on' else 'désactivé'}.")
-
-    @app_commands.command(name="addbannedword", description="Ajoute un mot à la liste des mots interdits.")
-    @app_commands.describe(word="Le mot à interdire")
-    @app_commands.checks.has_permissions(manage_guild=True)
-    async def addbannedword(self, interaction: discord.Interaction, word: str):
-        await database.add_banned_word(interaction.guild.id, word)
-        await interaction.response.send_message("✅ Mot ajouté à la liste des mots interdits.", ephemeral=True)
-
-    @app_commands.command(name="removebannedword", description="Retire un mot de la liste des mots interdits.")
-    @app_commands.describe(word="Le mot à retirer")
-    @app_commands.checks.has_permissions(manage_guild=True)
-    async def removebannedword(self, interaction: discord.Interaction, word: str):
-        await database.remove_banned_word(interaction.guild.id, word)
-        await interaction.response.send_message("✅ Mot retiré de la liste des mots interdits.", ephemeral=True)
-
-    @app_commands.command(name="bannedwords", description="Envoie en MP la liste des mots interdits.")
-    @app_commands.checks.has_permissions(manage_guild=True)
-    async def bannedwords(self, interaction: discord.Interaction):
-        words = await database.get_banned_words(interaction.guild.id)
-        if not words:
-            return await interaction.response.send_message("Aucun mot interdit configuré.", ephemeral=True)
-        try:
-            await interaction.user.send("Mots interdits sur ce serveur :\n" + ", ".join(f"`{w}`" for w in words))
-            await interaction.response.send_message("📬 Je t'ai envoyé la liste en message privé.", ephemeral=True)
-        except discord.Forbidden:
-            await interaction.response.send_message("Active tes MP pour que je puisse t'envoyer la liste.", ephemeral=True)
 
 
 async def setup(bot: commands.Bot):
