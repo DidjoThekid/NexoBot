@@ -35,8 +35,6 @@ intents = discord.Intents.default()
 intents.members = True
 intents.message_content = True  # requis pour l'automod (lecture du contenu des messages)
 
-# Le préfixe texte n'est plus utilisé (tout passe en slash commands), mais
-# discord.py exige quand même un command_prefix pour instancier un Bot.
 bot = commands.Bot(command_prefix="!", intents=intents)
 
 COGS = [
@@ -45,7 +43,7 @@ COGS = [
     "cogs.logs",
     "cogs.welcome",
     "cogs.utility",
-    "cogs.settings",
+    "cogs.config",
     "cogs.automod",
 ]
 
